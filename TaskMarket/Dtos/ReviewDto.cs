@@ -1,0 +1,15 @@
+#nullable enable
+using System;
+
+namespace TaskMarket.Dtos;
+
+public class ReviewDto
+{
+    public int Id { get; set; }
+    public int TaskId { get; set; }
+    public int ReviewerId { get; set; }
+    public int TargetId { get; set; }
+    public int Rating { get; set; }
+    public string Comment { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
