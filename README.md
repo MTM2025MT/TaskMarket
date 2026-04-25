@@ -33,3 +33,17 @@ The architecture reflects a pragmatic engineering style focused on testability a
 1. Clone the repository:
    ```bash
    git clone [https://github.com/MTM2025MT/TaskMarket.git](https://github.com/MTM2025MT/TaskMarket.git)
+Navigate to the project directory:
+
+Bash
+cd TaskMarket
+Update appsettings.json with your local SQL Server connection string.
+
+Apply Entity Framework migrations:
+
+Bash
+dotnet ef database update
+Run the application:
+
+Bash
+dotnet run
