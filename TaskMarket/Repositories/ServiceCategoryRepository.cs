@@ -16,7 +16,7 @@ public sealed class ServiceCategoryRepository : IServiceCategoryRepository
     public async Task<ServiceCategory?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         => await _db.ServiceCategories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<ServiceCategory>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<List<ServiceCategory>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _db.ServiceCategories.ToListAsync(cancellationToken);
 
     public async Task AddAsync(ServiceCategory category, CancellationToken cancellationToken = default)

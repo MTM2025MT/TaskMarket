@@ -5,11 +5,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TaskMarket.Models;
 
-public class Customer:User
+public class Customer: User
 {
-    [Key]
-    public int Id { get; set; }
-
 
 
     public string? StripeCustomerId { get; set; }

@@ -17,7 +17,7 @@ public sealed class TaskItemRepository : ITaskItemRepository
     public async Task<TaskItem?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         => await _db.Tasks.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<TaskItem>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<List<TaskItem>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _db.Tasks.ToListAsync(cancellationToken);
 
     public async Task AddAsync(TaskItem task, CancellationToken cancellationToken = default)

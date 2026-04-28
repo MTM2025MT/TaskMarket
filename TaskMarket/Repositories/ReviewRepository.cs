@@ -16,7 +16,7 @@ public sealed class ReviewRepository : IReviewRepository
     public async Task<Review?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         => await _db.Reviews.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<Review>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Review>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _db.Reviews.ToListAsync(cancellationToken);
 
     public async Task AddAsync(Review review, CancellationToken cancellationToken = default)

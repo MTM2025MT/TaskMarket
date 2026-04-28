@@ -5,14 +5,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TaskMarket.Models;
 
-public class Contractor
+public class Contractor: User
 {
-    [Key]
-    public int Id { get; set; }
 
-    [ForeignKey(nameof(User))]
-    public int UserId { get; set; }
-    public virtual User User { get; set; } = null!;
 
     [Required]
     public string BusinessName { get; set; } = string.Empty;

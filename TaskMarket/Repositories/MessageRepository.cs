@@ -16,7 +16,7 @@ public sealed class MessageRepository : IMessageRepository
     public async Task<Message?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         => await _db.Messages.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<Message>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Message>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _db.Messages.ToListAsync(cancellationToken);
 
     public async Task AddAsync(Message message, CancellationToken cancellationToken = default)

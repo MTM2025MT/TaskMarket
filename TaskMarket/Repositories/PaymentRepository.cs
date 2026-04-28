@@ -16,7 +16,7 @@ public sealed class PaymentRepository : IPaymentRepository
     public async Task<Payment?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         => await _db.Payments.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<Payment>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Payment>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _db.Payments.ToListAsync(cancellationToken);
 
     public async Task AddAsync(Payment payment, CancellationToken cancellationToken = default)

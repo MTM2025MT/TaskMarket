@@ -16,7 +16,7 @@ public sealed class JobOfferRepository : IJobOfferRepository
     public async Task<JobOffer?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         => await _db.JobOffers.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<JobOffer>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<List<JobOffer>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _db.JobOffers.ToListAsync(cancellationToken);
 
     public async Task AddAsync(JobOffer offer, CancellationToken cancellationToken = default)

@@ -16,7 +16,7 @@ public sealed class ContractorRepository : IContractorRepository
     public async Task<Contractor?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         => await _db.Contractors.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<Contractor>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Contractor>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _db.Contractors.ToListAsync(cancellationToken);
 
     public async Task AddAsync(Contractor contractor, CancellationToken cancellationToken = default)

@@ -16,7 +16,7 @@ public sealed class OfferApplicationRepository : IOfferApplicationRepository
     public async Task<OfferApplication?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         => await _db.OfferApplications.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<OfferApplication>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<List<OfferApplication>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _db.OfferApplications.ToListAsync(cancellationToken);
 
     public async Task AddAsync(OfferApplication application, CancellationToken cancellationToken = default)

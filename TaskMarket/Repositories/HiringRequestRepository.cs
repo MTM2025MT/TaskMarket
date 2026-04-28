@@ -16,7 +16,7 @@ public sealed class HiringRequestRepository : IHiringRequestRepository
     public async Task<HiringRequest?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         => await _db.HiringRequests.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<HiringRequest>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<List<HiringRequest>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _db.HiringRequests.ToListAsync(cancellationToken);
 
     public async Task<int> AddAsync(HiringRequest request, CancellationToken cancellationToken = default)
@@ -36,13 +36,13 @@ public sealed class HiringRequestRepository : IHiringRequestRepository
         return rowEffected;
     }
 
-    public Task<int> Update(HiringRequest request)
+    public Task<int> Update(HiringRequest request, CancellationToken cancellationToken = default)
     {
        _db.HiringRequests.Update(request);
         return SaveChangesAsync();
     }
 
-    public Task<int> Remove(HiringRequest request)
+    public Task<int> Remove(HiringRequest request, CancellationToken cancellationToken = default)
     {
         _db.HiringRequests.Remove(request);
         return SaveChangesAsync();
