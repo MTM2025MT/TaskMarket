@@ -21,4 +21,6 @@ public class Contractor: User
     public decimal RatingAvg { get; set; }
 
     public bool IsVerified { get; set; }
+    public List<ServiceCategory> ContractorServiceCategories { get; set; } = new();
+    public List<string>? CertificateFilesPaths { get; set; }
 }

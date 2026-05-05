@@ -13,7 +13,7 @@ namespace TaskMarket
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -29,8 +29,7 @@ namespace TaskMarket
                     options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
                 });
 
-
-            builder.Services.AddIdentity<User, IdentityRole>()
+            builder.Services.AddIdentity<User, IdentityRoleApplication>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -44,24 +43,34 @@ namespace TaskMarket
             .AddJwtBearer(options =>
             {
                 options.SaveToken = true;
-                options.RequireHttpsMetadata = false; // Set to true in production if possible
+                options.RequireHttpsMetadata = false;
                 options.TokenValidationParameters = new TokenValidationParameters()
                 {
-                    // 1. Validate the Issuer (Who created the token)
                     ValidateIssuer = true,
                     ValidIssuer = "TaskMarketServer", // Must match the string in your Login Controller
 
-                    // 2. Validate the Audience (Who the token is for)
                     ValidateAudience = true,
                     ValidAudience = "TaskMarketClient", // Must match the string in your Login Controller
 
-                    // 3. Validate the Secret Key (Signature)
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"])),
 
-                    // 4. Ensure token hasn't expired
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.Zero // Removes the default 5-minute buffer so expiration is exact
+                    ClockSkew = TimeSpan.Zero, // Removes the default 5-minute buffer so expiration is exact
+
+                };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = context =>
+                    {
+                        var claim = context.Principal?.FindFirst("account_valid")?.Value;
+                        if (!string.Equals(claim, "true", StringComparison.OrdinalIgnoreCase))
+                        {
+                            context.Fail("Account is not valid.");
+                        }
+                        return Task.CompletedTask;
+                    }
                 };
             });
 
@@ -76,7 +85,6 @@ namespace TaskMarket
                         .AllowCredentials(); // <--- This is REQUIRED for cookies to work
                 });
             });
-
 
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -93,7 +101,10 @@ namespace TaskMarket
             builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
             builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
             builder.Services.AddScoped<IVerificationOfEmail, VerificationOfEmail>();
+            builder.Services.AddScoped<IGenerateToken, GenerateToken>();
             var app = builder.Build();
+
+
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
@@ -106,10 +117,10 @@ namespace TaskMarket
 
             app.UseAuthorization();
 
-
             app.MapControllers();
 
             app.Run();
         }
+
     }
 }
