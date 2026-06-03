@@ -18,12 +18,18 @@ namespace TaskMarket.Controllers
     public class AccountsController : ControllerBase
     {
         private readonly UserManager<User> _userManager;
-        private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly RoleManager<IdentityRoleApplication> _roleManager;
         private readonly IVerificationOfEmail _verificationOfEmail;
         private readonly ILogger<AccountsController> _logger;
         private readonly IConfiguration _configuration;
         private readonly IGenerateToken _generateToken;
-        public AccountsController(UserManager<User> userManager, RoleManager<IdentityRole> roleManager, IVerificationOfEmail verificationOfEmail, ILogger<AccountsController> logger, IConfiguration configuration, IGenerateToken generateToken)
+        public AccountsController(
+            UserManager<User> userManager,
+            RoleManager<IdentityRoleApplication> roleManager,
+            IVerificationOfEmail verificationOfEmail,
+            ILogger<AccountsController> logger,
+            IConfiguration configuration,
+            IGenerateToken generateToken)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -189,12 +195,12 @@ namespace TaskMarket.Controllers
                  errorMessage = string.Join("; ", Adding_Refresh_Token_To_User_ResultBox.Errors.Select(e => e.Description));
                 
             }
-
+            var role = await _userManager.GetRolesAsync(user);
             return Ok(new
             {
                 errorMessage = errorMessage,
-                token = accessToken,
-
+                token = accessToken.Value,
+                roles= role,
                 id = user.Id                
             });
         }

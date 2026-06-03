@@ -18,7 +18,8 @@ public sealed class MessageRepository : IMessageRepository
 
     public async Task<List<Message>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _db.Messages.ToListAsync(cancellationToken);
-
+    public async Task<List<Message>> GetUserMesseges(int id,CancellationToken cancellationToken=default)
+    => await _db.Messages.Where(m => m.SenderId == id || m.ReceiverId == id).ToListAsync(cancellationToken);
     public async Task AddAsync(Message message, CancellationToken cancellationToken = default)
         => await _db.Messages.AddAsync(message, cancellationToken);
 

@@ -46,6 +46,16 @@ public class OffersController : ControllerBase
     public async Task<IActionResult> GetOffers()
     {
         var resultBox = await _jobOfferHandler.GetOffersAsync();
+        return resultBox.Match<IActionResult>(
+            success => Ok(success),
+            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+        );
+    }
+
+    [HttpGet("GetOffersByCustomerId/{customerId:int}")]
+    public async Task<IActionResult> GetOffersByCustomerId(int customerId)
+    {
+        var resultBox = await _jobOfferHandler.GetOffersByCustomerIdAsync(customerId);
 
         return resultBox.Match<IActionResult>(
             success => Ok(success),

@@ -70,7 +70,7 @@ public sealed class TaskItemHandler
 
         return task;
     }
-
+   
     // From TasksController: PUT /api/tasks/{taskId}/status
     public async Task<ErrorOr<Success>> UpdateTaskStatusAsync(int taskId, string status, CancellationToken cancellationToken = default)
     {
@@ -94,5 +94,34 @@ public sealed class TaskItemHandler
         _taskItemRepository.Update(task);
 
         return Result.Success;
+    }
+
+    // From TasksController: GET /api/tasks/customer/{customerId}
+    public async Task<ErrorOr<List<TaskItem>>> GetTasksByCustomerIdAsync(int customerId, CancellationToken cancellationToken = default)
+    {
+        if (customerId <= 0)
+        {
+            return Error.Validation(
+                code: "TaskItem.InvalidCustomerId",
+                description: "Customer ID must be greater than zero.");
+        }
+
+        var tasks = await _taskItemRepository.GetTasksByCustomerIdAsync(customerId, cancellationToken);
+
+        if (tasks is null)
+        {
+            return Error.Failure(
+                code: "GettingTasks.Null",
+                description: "Failed to get tasks and returned null.");
+        }
+
+        if (tasks.Count == 0)
+        {
+            return Error.NotFound(
+                code: "GettingTasks.Empty",
+                description: $"No tasks found for customer ID {customerId}.");
+        }
+
+        return tasks;
     }
 }

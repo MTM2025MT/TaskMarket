@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json.Serialization;
+using TaskMarket.Handlers;
 using TaskMarket.Helpers;
 using TaskMarket.IRepositories;
 using TaskMarket.Models;
@@ -15,6 +16,7 @@ namespace TaskMarket
     {
         public static async Task Main(string[] args)
         {
+
             var builder = WebApplication.CreateBuilder(args);
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
             // Add services to the container.
@@ -22,7 +24,8 @@ namespace TaskMarket
                 options.UseSqlServer(
                     connectionString
                    )
-);
+);           
+
             builder.Services.AddControllers()
                 .AddJsonOptions(options =>
                 {
@@ -86,6 +89,7 @@ namespace TaskMarket
                 });
             });
 
+
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
             builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
@@ -102,10 +106,39 @@ namespace TaskMarket
             builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
             builder.Services.AddScoped<IVerificationOfEmail, VerificationOfEmail>();
             builder.Services.AddScoped<IGenerateToken, GenerateToken>();
+
+            var handlerTypes = typeof(MessageHandler).Assembly
+    .GetTypes()
+    .Where(t => t.IsClass && !t.IsAbstract && t.Namespace == "TaskMarket.Handlers");
+
+            foreach (var handlerType in handlerTypes)
+            {
+                builder.Services.AddScoped(handlerType);
+            }
+
             var app = builder.Build();
 
 
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
 
+                // Run the seeder
+                //using (var scope = app.Services.CreateScope())
+                //{
+                //    var services = scope.ServiceProvider;
+                //    var context = services.GetRequiredService<ApplicationDbContext>();
+
+                //    // Ensures the database exists and applies pending migrations
+                //    context.Database.Migrate();
+
+                //    // Seed the fake data
+                //    var userManager = services.GetRequiredService<UserManager<User>>();
+                //    var roleManager = services.GetRequiredService<RoleManager<IdentityRoleApplication>>();
+                //    await DatabaseSeeder.SeedAsync(context, userManager, roleManager);
+                //}
+            }
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
@@ -114,6 +147,8 @@ namespace TaskMarket
             }
 
             app.UseHttpsRedirection();
+           app.UseCors("CorsPolicy");
+            app.UseAuthentication();
 
             app.UseAuthorization();
 

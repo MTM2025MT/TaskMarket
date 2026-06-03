@@ -14,7 +14,7 @@ public sealed class JobOfferHandler
     }
 
     // From OffersController: POST /api/offers
-        public async Task<ErrorOr<Success>> CreateOfferAsync(JobOffer request, CancellationToken cancellationToken = default)
+    public async Task<ErrorOr<Success>> CreateOfferAsync(JobOffer request, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -45,6 +45,35 @@ public sealed class JobOfferHandler
             return Error.NotFound(
                 code: "GettingAllJobOffers.Empty",
                 description: "No job offers found.");
+        }
+
+        return offers;
+    }
+
+    // From OffersController: GET /api/offers/GetOffersByCustomerId/{customerId}
+    public async Task<ErrorOr<List<JobOffer>>> GetOffersByCustomerIdAsync(int customerId, CancellationToken cancellationToken = default)
+    {
+        if (customerId <= 0)
+        {
+            return Error.Validation(
+                code: "JobOffer.InvalidCustomerId",
+                description: "Customer ID must be greater than zero.");
+        }
+
+        var offers = await _jobOfferRepository.GetOffersByCustomerIdAsync(customerId, cancellationToken);
+
+        if (offers is null)
+        {
+            return Error.Failure(
+                code: "GettingJobOffersByCustomerId.Null",
+                description: "Failed to get job offers and returned null.");
+        }
+
+        if (offers.Count == 0)
+        {
+            return Error.NotFound(
+                code: "GettingJobOffersByCustomerId.Empty",
+                description: $"No job offers found for customer ID {customerId}.");
         }
 
         return offers;

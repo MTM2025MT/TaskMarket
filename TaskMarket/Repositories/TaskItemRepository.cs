@@ -20,6 +20,8 @@ public sealed class TaskItemRepository : ITaskItemRepository
     public async Task<List<TaskItem>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _db.Tasks.ToListAsync(cancellationToken);
 
+    public async Task<List<TaskItem>> GetTasksByCustomerIdAsync(int userId, CancellationToken cancellationToken = default)
+        => await _db.Tasks.Where(x => x.ClientId == userId).ToListAsync(cancellationToken);
     public async Task AddAsync(TaskItem task, CancellationToken cancellationToken = default)
         => await _db.Tasks.AddAsync(task, cancellationToken);
 

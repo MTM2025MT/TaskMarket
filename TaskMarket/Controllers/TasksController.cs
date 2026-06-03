@@ -92,6 +92,17 @@ public class TasksController : ControllerBase
         );
     }
 
+    [HttpGet("GetTasksByCustomerId/{customerId:int}")]
+    public async Task<IActionResult> GetTasksByCustomerId(int customerId)
+    {
+        var resultBox = await _taskItemHandler.GetTasksByCustomerIdAsync(customerId);
+
+        return resultBox.Match<IActionResult>(
+            success => Ok(success),
+            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+        );
+    }
+
     [HttpPut("{taskId:int}/status")]
     public async Task<IActionResult> UpdateTaskStatus(int taskId, [FromBody] UpdateTaskStatusRequest request)
     {
