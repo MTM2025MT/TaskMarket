@@ -1,8 +1,5 @@
 ### 2. `TaskMarket` README Template
 
-Copy and paste this directly into the `README.md` file for your TaskMarket repository:
-
-```markdown
 # 🤝 TaskMarket - Core API
 
 > A modular Web API monolith designed to manage complex contractor hiring workflows, payments, and messaging with strict relational safeguards and an explicit use-case handler architecture.
