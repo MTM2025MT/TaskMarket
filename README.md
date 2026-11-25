@@ -1,4 +1,3 @@
-### 2. `TaskMarket` README Template
 
 # 🤝 TaskMarket - Core API
 
