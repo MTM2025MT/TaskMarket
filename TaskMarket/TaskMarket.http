@@ -1,6 +1,39 @@
 @TaskMarket_HostAddress = http://localhost:5292
+# Paste the "token" returned by /api/Accounts/Login here
+@token =
 
-GET {{TaskMarket_HostAddress}}/weatherforecast/
+### Public endpoints
+GET {{TaskMarket_HostAddress}}/api/categories
+Accept: application/json
+
+###
+GET {{TaskMarket_HostAddress}}/api/Contractor/GetBestContractors?count=5
+Accept: application/json
+
+###
+POST {{TaskMarket_HostAddress}}/api/Accounts/Login
+Content-Type: application/json
+
+{
+  "email": "customer_0@example.com",
+  "password": "P@ssw0rd123!"
+}
+
+### Authenticated (Customer role)
+POST {{TaskMarket_HostAddress}}/api/tasks
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "categoryId": 1,
+  "title": "Fix the kitchen sink",
+  "description": "Leaking pipe under the sink",
+  "address": "12 Main St"
+}
+
+###
+GET {{TaskMarket_HostAddress}}/api/payments
+Authorization: Bearer {{token}}
 Accept: application/json
 
 ###

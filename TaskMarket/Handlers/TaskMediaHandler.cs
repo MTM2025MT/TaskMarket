@@ -1,4 +1,5 @@
 using ErrorOr;
+using TaskMarket.Dtos;
 using TaskMarket.IRepositories;
 using TaskMarket.Models;
 
@@ -7,22 +8,17 @@ namespace TaskMarket.Handlers;
 public sealed class TaskMediaHandler
 {
     private readonly ITaskMediaRepository _taskMediaRepository;
+    private readonly ITaskItemRepository _taskItemRepository;
 
-    public TaskMediaHandler(ITaskMediaRepository taskMediaRepository)
+    public TaskMediaHandler(ITaskMediaRepository taskMediaRepository, ITaskItemRepository taskItemRepository)
     {
         _taskMediaRepository = taskMediaRepository;
+        _taskItemRepository = taskItemRepository;
     }
 
     // From TasksController: POST /api/tasks/{taskId}/media
-    public async Task<ErrorOr<Success>> AddTaskMediaAsync(int taskId, TaskMedia request, CancellationToken cancellationToken = default)
+    public async Task<ErrorOr<TaskMediaDto>> AddTaskMediaAsync(int taskId, int userId, AddTaskMediaRequestDto request, CancellationToken cancellationToken = default)
     {
-        if (request is null)
-        {
-            return Error.Validation(
-                code: "TaskMedia.Null",
-                description: "Task media cannot be null.");
-        }
-
         if (string.IsNullOrWhiteSpace(request.MediaUrl))
         {
             return Error.Validation(
@@ -37,9 +33,30 @@ public sealed class TaskMediaHandler
                 description: "Media type is required.");
         }
 
-        request.TaskId = taskId;
+        var task = await _taskItemRepository.GetByIdAsync(taskId, cancellationToken);
+        if (task is null)
+        {
+            return Error.NotFound(
+                code: "TaskItem.NotFound",
+                description: $"Task with ID {taskId} not found.");
+        }
 
-        await _taskMediaRepository.AddAsync(request, cancellationToken);
-        return Result.Success;
+        if (task.ClientId != userId)
+        {
+            return Error.Forbidden(
+                code: "TaskMedia.NotOwner",
+                description: "Only the task's customer can add media to it.");
+        }
+
+        var media = new TaskMedia
+        {
+            TaskId = taskId,
+            MediaUrl = request.MediaUrl,
+            MediaType = request.MediaType
+        };
+
+        await _taskMediaRepository.AddAsync(media, cancellationToken);
+        await _taskMediaRepository.SaveChangesAsync(cancellationToken);
+        return media.ToDto();
     }
 }

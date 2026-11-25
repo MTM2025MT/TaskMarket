@@ -13,6 +13,7 @@ public class TaskItemDto
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? Address { get; set; }
+    public GeoCoordinate? Location { get; set; }
     public TaskMarket.Models.TaskStatus Status { get; set; }
 
     public DateTime CreatedAt { get; set; }

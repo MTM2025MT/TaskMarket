@@ -1,19 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
 using TaskMarket.Handlers;
-using TaskMarket.IRepositories;
 
 namespace TaskMarket.Controllers;
 
 [ApiController]
 [Route("api/categories")]
-public class ServiceCategoriesController : ControllerBase
+public class ServiceCategoriesController : ProblemHandler
 {
-    private readonly IServiceCategoryRepository _serviceCategoryRepository;
     private readonly ServiceCategoryHandler _serviceCategoryHandler;
 
-    public ServiceCategoriesController(IServiceCategoryRepository serviceCategoryRepository, ServiceCategoryHandler serviceCategoryHandler)
+    public ServiceCategoriesController(ServiceCategoryHandler serviceCategoryHandler)
     {
-        _serviceCategoryRepository = serviceCategoryRepository;
         _serviceCategoryHandler = serviceCategoryHandler;
     }
 
@@ -24,7 +21,7 @@ public class ServiceCategoriesController : ControllerBase
 
         return resultBox.Match<IActionResult>(
             success => Ok(success),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            failure => Problem(failure)
         );
     }
 }

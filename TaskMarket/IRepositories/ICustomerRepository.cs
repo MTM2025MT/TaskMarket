@@ -1,4 +1,4 @@
-﻿using TaskMarket.Models;
+using TaskMarket.Models;
 
 namespace TaskMarket.IRepositories;
 
@@ -9,4 +9,5 @@ public interface ICustomerRepository
     Task AddAsync(Customer customer, CancellationToken cancellationToken = default);
     void Update(Customer customer);
     void Remove(Customer customer);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

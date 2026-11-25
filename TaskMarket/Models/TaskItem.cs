@@ -28,9 +28,11 @@ public class TaskItem
     public string? Description { get; set; }
     public string? Address { get; set; }
 
+    public  GeoCoordinate? Location { get; set; }
     public TaskStatus Status { get; set; } = TaskStatus.Open;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
     // Navigation for related data
     public virtual ICollection<Message> Messages { get; set; } = new List<Message>();
+    public virtual ICollection<TaskMedia> Media { get; set; } = new List<TaskMedia>();
 }

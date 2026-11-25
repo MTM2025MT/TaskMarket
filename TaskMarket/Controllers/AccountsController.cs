@@ -1,15 +1,9 @@
-﻿using ErrorOr;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 using PotholeApi.DTO;
-using System.IdentityModel.Tokens.Jwt;
-using System.Net.Http.Headers;
-using System.Security.Claims;
-using System.Text;
 using TaskMarket.Dtos;
 using TaskMarket.Helpers;
+using TaskMarket.IRepositories;
 using TaskMarket.Models;
 namespace TaskMarket.Controllers
 {
@@ -18,25 +12,25 @@ namespace TaskMarket.Controllers
     public class AccountsController : ControllerBase
     {
         private readonly UserManager<User> _userManager;
-        private readonly RoleManager<IdentityRoleApplication> _roleManager;
         private readonly IVerificationOfEmail _verificationOfEmail;
         private readonly ILogger<AccountsController> _logger;
-        private readonly IConfiguration _configuration;
         private readonly IGenerateToken _generateToken;
+        private readonly IServiceCategoryRepository _serviceCategoryRepository;
+        private readonly IContractorRepository _contractorRepository;
         public AccountsController(
             UserManager<User> userManager,
-            RoleManager<IdentityRoleApplication> roleManager,
             IVerificationOfEmail verificationOfEmail,
             ILogger<AccountsController> logger,
-            IConfiguration configuration,
-            IGenerateToken generateToken)
+            IGenerateToken generateToken,
+            IServiceCategoryRepository serviceCategoryRepository,
+            IContractorRepository contractorRepository)
         {
             _userManager = userManager;
-            _roleManager = roleManager;
             _verificationOfEmail = verificationOfEmail;
             _logger = logger;
-            _configuration = configuration;
             _generateToken = generateToken;
+            _serviceCategoryRepository = serviceCategoryRepository;
+            _contractorRepository = contractorRepository;
         }
 
         [HttpPost("register")]
@@ -58,13 +52,13 @@ namespace TaskMarket.Controllers
             var user_who_has_email= await _userManager.FindByEmailAsync(request.Email);
             if (user_who_has_email != null)
             {
-                ModelState.AddModelError("Email", "Email is already taken,if you have this email check you email .");
-                await _verificationOfEmail.SendVerificationEmailAsync(user_who_has_email.Email, user_who_has_email.Id);
+                ModelState.AddModelError("Email", "Email is already taken, if you have this email check your email.");
+                await ResendVerificationIfNeededAsync(user_who_has_email);
                 return BadRequest(ModelState);
             }
 
-
-            var user = new User
+            // Customers get their own row in the Customers table so they can own tasks, offers and payments
+            var user = new Customer
             {
                 UserName = request.UserName,
                 Email = request.Email,
@@ -77,16 +71,19 @@ namespace TaskMarket.Controllers
                 return BadRequest(result.Errors);
             }
 
-            await _userManager.AddToRoleAsync(user, "Customer");
+            var roleResult = await _userManager.AddToRoleAsync(user, "Customer");
+            if (!roleResult.Succeeded)
+            {
+                return BadRequest(roleResult.Errors);
+            }
 
-            await _verificationOfEmail.SendVerificationEmailAsync(user.Email, user.Id);
-            return Created();
+            await TrySendVerificationEmailAsync(user);
+            return StatusCode(StatusCodes.Status201Created, new { id = user.Id });
          }
+
         [HttpGet("verify-email")]
         public async Task<IActionResult> VerifyEmail([FromQuery] string token)
         {
-            // Implementation for verifying the email using the token
-            // This would typically involve validating the token, extracting the user ID, and marking the user's email as verified in the database
             var principal = await _verificationOfEmail.ValidateVerificationToken(token);
             if (principal == null)
             {
@@ -106,10 +103,12 @@ namespace TaskMarket.Controllers
             }
 
             user.IsVerified = true;
+            user.EmailConfirmed = true;
             await _userManager.UpdateAsync(user);
 
             return Ok("Email verified successfully.");
         }
+
         [HttpPost("register-contractor")]
         public async Task<IActionResult> RegisterContractor([FromBody] ContractorRegisterRequestDto request)
         {
@@ -118,9 +117,9 @@ namespace TaskMarket.Controllers
                 return BadRequest(ModelState);
             }
 
-            var userName = request.BusinessName.Trim();
+            var businessName = request.BusinessName.Trim();
 
-            if (await _userManager.FindByNameAsync(userName) != null)
+            if (await _contractorRepository.BusinessNameExistsAsync(businessName))
             {
                 ModelState.AddModelError("BusinessName", "Business name is already taken.");
                 return BadRequest(ModelState);
@@ -130,21 +129,32 @@ namespace TaskMarket.Controllers
             if (existingByEmail != null)
             {
                 ModelState.AddModelError("Email", "Email is already taken.");
-                await _verificationOfEmail.SendVerificationEmailAsync(existingByEmail.Email!, existingByEmail.Id);
+                await ResendVerificationIfNeededAsync(existingByEmail);
+                return BadRequest(ModelState);
+            }
+
+            var requestedCategoryIds = request.ContractorServiceCategoriesIds.Distinct().ToList();
+            var categories = await _serviceCategoryRepository.GetByIdsAsync(requestedCategoryIds);
+            if (categories.Count != requestedCategoryIds.Count)
+            {
+                ModelState.AddModelError("ContractorServiceCategoriesIds", "One or more service categories do not exist.");
                 return BadRequest(ModelState);
             }
 
             var contractor = new Contractor
             {
-                UserName = userName,
+                // Identity usernames only allow letters, digits and -._@+, so business names with spaces can't be used here
+                UserName = request.Email,
                 Email = request.Email,
-                FirstName = userName,
-                LastName = userName,
-                BusinessName = request.BusinessName,
+                FirstName = businessName,
+                LastName = businessName,
+                BusinessName = businessName,
                 Bio = request.Bio,
                 HourlyRate = request.HourlyRate,
+                // Email verification flips this; clients must not be able to self-verify
                 IsVerified = false,
-                CertificateFilesPaths = request.CertificateFilesPaths
+                CertificateFilesPaths = request.CertificateFilesPaths,
+                ContractorServiceCategories = categories
             };
 
             var result = await _userManager.CreateAsync(contractor, request.Password);
@@ -153,11 +163,17 @@ namespace TaskMarket.Controllers
                 return BadRequest(result.Errors);
             }
 
-            await _userManager.AddToRoleAsync(contractor, "Contractor");
-            await _verificationOfEmail.SendVerificationEmailAsync(contractor.Email!, contractor.Id);
+            var roleResult = await _userManager.AddToRoleAsync(contractor, "Contractor");
+            if (!roleResult.Succeeded)
+            {
+                return BadRequest(roleResult.Errors);
+            }
 
-            return Created();
+            await TrySendVerificationEmailAsync(contractor);
+
+            return StatusCode(StatusCodes.Status201Created, new { id = contractor.Id });
         }
+
         [HttpPost("Login")]
         public async Task<IActionResult> Login(LoginDto loginDto)
         {
@@ -179,21 +195,37 @@ namespace TaskMarket.Controllers
                 return Unauthorized("Email or Password are wrong");
             }
 
-            var errorMessage = "";
+            // Tokens of unverified/inactive accounts are rejected by every protected endpoint, so stop here
+            if (!user.IsVerified)
+            {
+                await ResendVerificationIfNeededAsync(user);
+                return Problem(
+                    detail: "Please verify your email before logging in. A new verification link was sent.",
+                    statusCode: StatusCodes.Status403Forbidden);
+            }
+
+            if (!user.IsActive || user.IsDeleted)
+            {
+                return Problem(detail: "This account is disabled.", statusCode: StatusCodes.Status403Forbidden);
+            }
+
             // Generate JWT token
             var accessToken = await _generateToken.GenerateAccessTokenAsync(user);
-
             if (accessToken.IsError)
             {
-                errorMessage = string.Join("; ", accessToken.Errors.Select(e => e.Description));
+                return Problem(
+                    detail: string.Join("; ", accessToken.Errors.Select(e => e.Description)),
+                    statusCode: StatusCodes.Status500InternalServerError);
             }
-            // Generate and add refresh token to user
+
+            // Generate and add refresh token to user (this also saves LastLogin)
+            user.LastLogin = DateTime.UtcNow;
             var Adding_Refresh_Token_To_User_ResultBox = await _generateToken.AddingRefreshTokenToUserAsync(user, Response);
 
+            var errorMessage = "";
             if (Adding_Refresh_Token_To_User_ResultBox.IsError)
             {
                  errorMessage = string.Join("; ", Adding_Refresh_Token_To_User_ResultBox.Errors.Select(e => e.Description));
-                
             }
             var role = await _userManager.GetRolesAsync(user);
             return Ok(new
@@ -201,8 +233,29 @@ namespace TaskMarket.Controllers
                 errorMessage = errorMessage,
                 token = accessToken.Value,
                 roles= role,
-                id = user.Id                
+                id = user.Id
             });
+        }
+
+        private async Task ResendVerificationIfNeededAsync(User user)
+        {
+            if (!user.IsVerified)
+            {
+                await TrySendVerificationEmailAsync(user);
+            }
+        }
+
+        // The account is already created at this point, so a mail failure must not turn into a 500
+        private async Task TrySendVerificationEmailAsync(User user)
+        {
+            try
+            {
+                await _verificationOfEmail.SendVerificationEmailAsync(user.Email!, user.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send verification email to user {UserId}", user.Id);
+            }
         }
     }
 }

@@ -9,4 +9,5 @@ public interface ITaskMediaRepository
     Task AddAsync(TaskMedia media, CancellationToken cancellationToken = default);
     void Update(TaskMedia media);
     void Remove(TaskMedia media);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

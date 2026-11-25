@@ -20,8 +20,11 @@ public class JobOffer
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal Price { get; set; }
-    
+    public decimal MaxPrice { get; set; }
+    public decimal MinPrice { get; set; }
+    public GeoCoordinate? Location { get; set; }
     public DateTime Deadline { get; set; }
     public OfferStatus Status { get; set; } = OfferStatus.Open;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+   
 }

@@ -35,6 +35,9 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRoleApplicat
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<JobOffer>().OwnsOne(j => j.Location);
+        modelBuilder.Entity<TaskItem>().OwnsOne(t => t.Location);
+
         // ====================================================
         // 1. FIX: MESSAGES (Prevent Multiple Cascade Paths)
         // ====================================================
@@ -151,7 +154,7 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRoleApplicat
         // ====================================================
         modelBuilder.Entity<TaskMedia>()
             .HasOne(tm => tm.TaskItem)
-            .WithMany()
+            .WithMany(t => t.Media)
             .HasForeignKey(tm => tm.TaskId)
             .OnDelete(DeleteBehavior.Restrict);
 
@@ -179,20 +182,20 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRoleApplicat
         // ====================================================
         // 8. FIX: CONTRACTOR SKILLS
         // ====================================================
-        modelBuilder.Entity<ContractorSkill>()
-            .HasKey(cs => new { cs.ContractorId, cs.CategoryId });
-
-        modelBuilder.Entity<ContractorSkill>()
-            .HasOne(cs => cs.Contractor)
+        // ContractorSkill is the join table behind Contractor.ContractorServiceCategories
+        modelBuilder.Entity<Contractor>()
+            .HasMany(c => c.ContractorServiceCategories)
             .WithMany()
-            .HasForeignKey(cs => cs.ContractorId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        modelBuilder.Entity<ContractorSkill>()
-            .HasOne(cs => cs.ServiceCategory)
-            .WithMany()
-            .HasForeignKey(cs => cs.CategoryId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .UsingEntity<ContractorSkill>(
+                right => right.HasOne(cs => cs.ServiceCategory)
+                    .WithMany()
+                    .HasForeignKey(cs => cs.CategoryId)
+                    .OnDelete(DeleteBehavior.Restrict),
+                left => left.HasOne(cs => cs.Contractor)
+                    .WithMany()
+                    .HasForeignKey(cs => cs.ContractorId)
+                    .OnDelete(DeleteBehavior.Restrict),
+                join => join.HasKey(cs => new { cs.ContractorId, cs.CategoryId }));
 
         // ====================================================
         // 9. DECIMAL PRECISION (To avoid Warnings)

@@ -27,4 +27,7 @@ public sealed class TaskMediaRepository : ITaskMediaRepository
 
     public void Remove(TaskMedia media)
         => _db.Set<TaskMedia>().Remove(media);
+
+    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => _db.SaveChangesAsync(cancellationToken);
 }

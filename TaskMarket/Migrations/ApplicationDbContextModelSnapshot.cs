@@ -230,6 +230,12 @@ namespace TaskMarket.Migrations
                     b.Property<DateTime>("Deadline")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal>("MaxPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MinPrice")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
 
@@ -263,7 +269,7 @@ namespace TaskMarket.Migrations
                     b.Property<bool>("IsRead")
                         .HasColumnType("bit");
 
-                    b.Property<int>("ReceiverId")
+                    b.Property<int?>("ReceiverId")
                         .HasColumnType("int");
 
                     b.Property<int>("SenderId")
@@ -405,9 +411,6 @@ namespace TaskMarket.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("ContractorId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -417,8 +420,6 @@ namespace TaskMarket.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ContractorId");
 
                     b.ToTable("ServiceCategories");
                 });
@@ -599,6 +600,10 @@ namespace TaskMarket.Migrations
                 {
                     b.HasBaseType("TaskMarket.Models.User");
 
+                    b.Property<string>("AboutMe")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Bio")
                         .HasColumnType("nvarchar(max)");
 
@@ -609,8 +614,14 @@ namespace TaskMarket.Migrations
                     b.Property<string>("CertificateFilesPaths")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("CompletedTaskCount")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("HourlyRate")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ProfilePicturePath")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("RatingAvg")
                         .HasColumnType("decimal(18,2)");
@@ -743,7 +754,28 @@ namespace TaskMarket.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.OwnsOne("TaskMarket.Models.GeoCoordinate", "Location", b1 =>
+                        {
+                            b1.Property<int>("JobOfferId")
+                                .HasColumnType("int");
+
+                            b1.Property<double>("Latitude")
+                                .HasColumnType("float");
+
+                            b1.Property<double>("Longitude")
+                                .HasColumnType("float");
+
+                            b1.HasKey("JobOfferId");
+
+                            b1.ToTable("JobOffers");
+
+                            b1.WithOwner()
+                                .HasForeignKey("JobOfferId");
+                        });
+
                     b.Navigation("Client");
+
+                    b.Navigation("Location");
 
                     b.Navigation("TaskItem");
                 });
@@ -753,8 +785,7 @@ namespace TaskMarket.Migrations
                     b.HasOne("TaskMarket.Models.User", "Receiver")
                         .WithMany()
                         .HasForeignKey("ReceiverId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("TaskMarket.Models.User", "Sender")
                         .WithMany()
@@ -848,13 +879,6 @@ namespace TaskMarket.Migrations
                     b.Navigation("TaskItem");
                 });
 
-            modelBuilder.Entity("TaskMarket.Models.ServiceCategory", b =>
-                {
-                    b.HasOne("TaskMarket.Models.Contractor", null)
-                        .WithMany("ContractorServiceCategories")
-                        .HasForeignKey("ContractorId");
-                });
-
             modelBuilder.Entity("TaskMarket.Models.TaskItem", b =>
                 {
                     b.HasOne("TaskMarket.Models.ServiceCategory", "Category")
@@ -874,17 +898,38 @@ namespace TaskMarket.Migrations
                         .HasForeignKey("ContractorId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.OwnsOne("TaskMarket.Models.GeoCoordinate", "Location", b1 =>
+                        {
+                            b1.Property<int>("TaskItemId")
+                                .HasColumnType("int");
+
+                            b1.Property<double>("Latitude")
+                                .HasColumnType("float");
+
+                            b1.Property<double>("Longitude")
+                                .HasColumnType("float");
+
+                            b1.HasKey("TaskItemId");
+
+                            b1.ToTable("Tasks");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TaskItemId");
+                        });
+
                     b.Navigation("Category");
 
                     b.Navigation("Client");
 
                     b.Navigation("Contractor");
+
+                    b.Navigation("Location");
                 });
 
             modelBuilder.Entity("TaskMarket.Models.TaskMedia", b =>
                 {
                     b.HasOne("TaskMarket.Models.TaskItem", "TaskItem")
-                        .WithMany()
+                        .WithMany("Media")
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -912,12 +957,9 @@ namespace TaskMarket.Migrations
 
             modelBuilder.Entity("TaskMarket.Models.TaskItem", b =>
                 {
-                    b.Navigation("Messages");
-                });
+                    b.Navigation("Media");
 
-            modelBuilder.Entity("TaskMarket.Models.Contractor", b =>
-                {
-                    b.Navigation("ContractorServiceCategories");
+                    b.Navigation("Messages");
                 });
 #pragma warning restore 612, 618
         }

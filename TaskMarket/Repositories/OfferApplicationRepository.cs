@@ -19,6 +19,12 @@ public sealed class OfferApplicationRepository : IOfferApplicationRepository
     public async Task<List<OfferApplication>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _db.OfferApplications.ToListAsync(cancellationToken);
 
+    public async Task<List<OfferApplication>> GetByOfferIdAsync(int offerId, CancellationToken cancellationToken = default)
+        => await _db.OfferApplications.Where(x => x.OfferId == offerId).ToListAsync(cancellationToken);
+
+    public Task<bool> ExistsAsync(int offerId, int contractorId, CancellationToken cancellationToken = default)
+        => _db.OfferApplications.AnyAsync(x => x.OfferId == offerId && x.ContractorId == contractorId, cancellationToken);
+
     public async Task AddAsync(OfferApplication application, CancellationToken cancellationToken = default)
         => await _db.OfferApplications.AddAsync(application, cancellationToken);
 
@@ -27,4 +33,7 @@ public sealed class OfferApplicationRepository : IOfferApplicationRepository
 
     public void Remove(OfferApplication application)
         => _db.OfferApplications.Remove(application);
+
+    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => _db.SaveChangesAsync(cancellationToken);
 }

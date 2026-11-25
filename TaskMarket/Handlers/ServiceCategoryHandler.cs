@@ -16,22 +16,6 @@ public sealed class ServiceCategoryHandler
     // From ServiceCategoriesController: GET /api/categories
     public async Task<ErrorOr<List<ServiceCategory>>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var categories = await _serviceCategoryRepository.GetAllAsync(cancellationToken);
-
-        if (categories is null)
-        {
-            return Error.Failure(
-                code: "GettingServiceCategories.Null",
-                description: "Failed to get service categories and returned null.");
-        }
-
-        if (categories.Count == 0)
-        {
-            return Error.NotFound(
-                code: "GettingServiceCategories.Empty",
-                description: "No service categories found.");
-        }
-
-        return categories.ToList();
+        return await _serviceCategoryRepository.GetAllAsync(cancellationToken);
     }
 }

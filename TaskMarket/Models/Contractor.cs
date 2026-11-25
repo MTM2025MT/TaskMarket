@@ -19,8 +19,10 @@ public class Contractor: User
 
     [Column(TypeName = "decimal(3,2)")]
     public decimal RatingAvg { get; set; }
+    public string AboutMe { get; set; } = string.Empty;
+    public string? ProfilePicturePath { get; set; }
+    public int? CompletedTaskCount { get; set; }
 
-    public bool IsVerified { get; set; }
     public List<ServiceCategory> ContractorServiceCategories { get; set; } = new();
     public List<string>? CertificateFilesPaths { get; set; }
 }

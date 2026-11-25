@@ -10,4 +10,5 @@ public interface ITaskItemRepository
     Task AddAsync(TaskItem task, CancellationToken cancellationToken = default);
     void Update(TaskItem task);
     void Remove(TaskItem task);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

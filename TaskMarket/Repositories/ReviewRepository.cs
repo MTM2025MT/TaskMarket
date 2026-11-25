@@ -19,6 +19,21 @@ public sealed class ReviewRepository : IReviewRepository
     public async Task<List<Review>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _db.Reviews.ToListAsync(cancellationToken);
 
+    public async Task<List<Review>> GetByTargetIdAsync(int targetId, CancellationToken cancellationToken = default)
+        => await _db.Reviews
+            .Where(x => x.TargetId == targetId)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+    public Task<bool> ExistsAsync(int taskId, int reviewerId, CancellationToken cancellationToken = default)
+        => _db.Reviews.AnyAsync(x => x.TaskId == taskId && x.ReviewerId == reviewerId, cancellationToken);
+
+    public async Task<List<int>> GetRatingsForTargetAsync(int targetId, CancellationToken cancellationToken = default)
+        => await _db.Reviews
+            .Where(x => x.TargetId == targetId)
+            .Select(x => x.Rating)
+            .ToListAsync(cancellationToken);
+
     public async Task AddAsync(Review review, CancellationToken cancellationToken = default)
         => await _db.Reviews.AddAsync(review, cancellationToken);
 
@@ -27,4 +42,7 @@ public sealed class ReviewRepository : IReviewRepository
 
     public void Remove(Review review)
         => _db.Reviews.Remove(review);
+
+    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => _db.SaveChangesAsync(cancellationToken);
 }

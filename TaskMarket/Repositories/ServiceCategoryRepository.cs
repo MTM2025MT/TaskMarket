@@ -19,6 +19,12 @@ public sealed class ServiceCategoryRepository : IServiceCategoryRepository
     public async Task<List<ServiceCategory>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _db.ServiceCategories.ToListAsync(cancellationToken);
 
+    public async Task<List<ServiceCategory>> GetByIdsAsync(IEnumerable<int> ids, CancellationToken cancellationToken = default)
+    {
+        var idList = ids.Distinct().ToList();
+        return await _db.ServiceCategories.Where(x => idList.Contains(x.Id)).ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(ServiceCategory category, CancellationToken cancellationToken = default)
         => await _db.ServiceCategories.AddAsync(category, cancellationToken);
 
@@ -27,4 +33,7 @@ public sealed class ServiceCategoryRepository : IServiceCategoryRepository
 
     public void Remove(ServiceCategory category)
         => _db.ServiceCategories.Remove(category);
+
+    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => _db.SaveChangesAsync(cancellationToken);
 }

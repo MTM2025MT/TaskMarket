@@ -19,8 +19,7 @@ namespace TaskMarket.Models
         {
             Randomizer.Seed = new Random(1337);
 
-            await EnsureRoleExistsAsync(roleManager, "Customer");
-            await EnsureRoleExistsAsync(roleManager, "Contractor");
+            await SeedRolesAsync(roleManager);
 
             var categories = new Faker<ServiceCategory>()
                 .RuleFor(c => c.Name, f => f.Commerce.Categories(1)[0])
@@ -226,6 +225,13 @@ namespace TaskMarket.Models
                 context.Reviews.AddRange(reviews);
                 await context.SaveChangesAsync();
             }
+        }
+
+        // Roles are required by registration, so this runs on every startup
+        public static async Task SeedRolesAsync(RoleManager<IdentityRoleApplication> roleManager)
+        {
+            await EnsureRoleExistsAsync(roleManager, "Customer");
+            await EnsureRoleExistsAsync(roleManager, "Contractor");
         }
 
         private static async Task EnsureRoleExistsAsync(

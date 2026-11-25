@@ -17,4 +17,7 @@ public sealed class ContractorSkillRepository : IContractorSkillRepository
 
     public void Remove(ContractorSkill skill)
         => _db.Set<ContractorSkill>().Remove(skill);
+
+    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => _db.SaveChangesAsync(cancellationToken);
 }

@@ -20,67 +20,79 @@ namespace TaskMarket.Helpers
             _configuration = configuration;
             _userManager = userManager;
         }
+
+        // Signed with the same key as access tokens; the "purpose" claim keeps the two from being interchangeable
+        private SymmetricSecurityKey SigningKey =>
+            new(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]
+                ?? throw new InvalidOperationException("JWT:Secret is not configured.")));
+
         public string GerateVerificationToken(int userId)
         {
-            // Implementation for generating a verification token
             var claims = new[]{
                 new Claim("userId", userId.ToString()),
                 new Claim("purpose", "email_verification")
             };
 
-            var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]));
-
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var creds = new SigningCredentials(SigningKey, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
+                issuer: _configuration["JWT:Issuer"],
+                audience: _configuration["JWT:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(5), // short lifetime!
+                expires: DateTime.UtcNow.AddHours(24),
                 signingCredentials: creds
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
         public async Task SendVerificationEmailAsync(string email,int userId, CancellationToken cancellationToken = default)
         {
             var token = GerateVerificationToken(userId);
 
-            var link = $"https://localhost:7099/api/Accounts/verify-email?token={token}";
-            // Implementation for sending verification email
-            var message = new MailMessage();
-            message.To.Add(email);
-            message.Subject = "Verify your email";
-            message.Body = $"Click here: {link}";
+            var baseUrl = (_configuration["App:BaseUrl"] ?? "https://localhost:7264").TrimEnd('/');
+            var link = $"{baseUrl}/api/Accounts/verify-email?token={Uri.EscapeDataString(token)}";
 
-            var smtp = new SmtpClient("smtp.gmail.com")
+            var senderEmail = _configuration["MyInformation:Email"];
+            if (string.IsNullOrWhiteSpace(senderEmail))
             {
-                Credentials = new NetworkCredential(_configuration["MyInformation:Email"], _configuration["MyInformation:Password"]),
+                throw new InvalidOperationException("MyInformation:Email is not configured.");
+            }
+
+            // SmtpClient refuses to send without a From address
+            using var message = new MailMessage
+            {
+                From = new MailAddress(senderEmail),
+                Subject = "Verify your email",
+                Body = $"Click here: {link}"
+            };
+            message.To.Add(email);
+
+            using var smtp = new SmtpClient("smtp.gmail.com", 587)
+            {
+                Credentials = new NetworkCredential(senderEmail, _configuration["MyInformation:Password"]),
                 EnableSsl = true
             };
 
-            await smtp.SendMailAsync(message);
+            await smtp.SendMailAsync(message, cancellationToken);
         }
 
-        public async Task<ClaimsPrincipal?> ValidateVerificationToken(string token)
+        public Task<ClaimsPrincipal?> ValidateVerificationToken(string token)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
 
             var validationParams = new TokenValidationParameters
             {
                 ValidateIssuer = true,
-                ValidIssuer = _configuration["Jwt:Issuer"],
+                ValidIssuer = _configuration["JWT:Issuer"],
 
                 ValidateAudience = true,
-                ValidAudience = _configuration["Jwt:Audience"],
+                ValidAudience = _configuration["JWT:Audience"],
 
                 ValidateLifetime = true,
 
                 ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(_configuration["Jwt:Key"])
-                ),
+                IssuerSigningKey = SigningKey,
 
                 ClockSkew = TimeSpan.Zero
             };
@@ -91,13 +103,13 @@ namespace TaskMarket.Helpers
 
                 var purpose = principal.FindFirst("purpose")?.Value;
                 if (purpose != "email_verification")
-                    return null;
+                    return Task.FromResult<ClaimsPrincipal?>(null);
 
-                return principal;
+                return Task.FromResult<ClaimsPrincipal?>(principal);
             }
             catch
             {
-                return null;
+                return Task.FromResult<ClaimsPrincipal?>(null);
             }
         }
 

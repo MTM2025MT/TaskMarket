@@ -6,4 +6,5 @@ public interface IContractorSkillRepository
 {
     Task AddAsync(ContractorSkill skill, CancellationToken cancellationToken = default);
     void Remove(ContractorSkill skill);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

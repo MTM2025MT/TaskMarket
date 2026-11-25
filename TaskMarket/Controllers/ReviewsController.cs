@@ -1,19 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
 using TaskMarket.Handlers;
-using TaskMarket.IRepositories;
 
 namespace TaskMarket.Controllers;
 
 [ApiController]
 [Route("api")]
-public class ReviewsController : ControllerBase
+public class ReviewsController : ProblemHandler
 {
-    private readonly IReviewRepository _reviewRepository;
     private readonly ReviewHandler _reviewHandler;
 
-    public ReviewsController(IReviewRepository reviewRepository, ReviewHandler reviewHandler)
+    public ReviewsController(ReviewHandler reviewHandler)
     {
-        _reviewRepository = reviewRepository;
         _reviewHandler = reviewHandler;
     }
 
@@ -24,7 +21,7 @@ public class ReviewsController : ControllerBase
 
         return resultBox.Match<IActionResult>(
             success => Ok(success),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            failure => Problem(failure)
         );
     }
 }

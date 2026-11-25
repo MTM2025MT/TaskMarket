@@ -1,5 +1,5 @@
 using ErrorOr;
-using System.Collections.Generic;
+using TaskMarket.Dtos;
 using TaskMarket.IRepositories;
 using TaskMarket.Models;
 namespace TaskMarket.Handlers;
@@ -7,86 +7,143 @@ namespace TaskMarket.Handlers;
 public sealed class HiringRequestHandler
 {
     private readonly IHiringRequestRepository _hiringRequestRepository;
+    private readonly ITaskItemRepository _taskItemRepository;
+    private readonly IContractorRepository _contractorRepository;
 
-    public HiringRequestHandler(IHiringRequestRepository hiringRequestRepository)
+    public HiringRequestHandler(
+        IHiringRequestRepository hiringRequestRepository,
+        ITaskItemRepository taskItemRepository,
+        IContractorRepository contractorRepository)
     {
         _hiringRequestRepository = hiringRequestRepository;
+        _taskItemRepository = taskItemRepository;
+        _contractorRepository = contractorRepository;
     }
 
     // From HiringRequestsController: POST /api/hiring-requests
-    public async Task<ErrorOr<int>> CreateAsync(HiringRequest request, CancellationToken cancellationToken = default)
+    public async Task<ErrorOr<HiringRequestDto>> CreateAsync(int clientId, CreateHiringRequestRequestDto request, CancellationToken cancellationToken = default)
     {
-        if (request is null)
+        var task = await _taskItemRepository.GetByIdAsync(request.TaskId, cancellationToken);
+        if (task is null)
         {
-            return Error.Validation(
-                code: "HiringRequest.Null",
-                description: "Hiring request cannot be null.");
+            return Error.NotFound(
+                code: "TaskItem.NotFound",
+                description: $"Task with ID {request.TaskId} not found.");
         }
 
-        var rowsAffected = await _hiringRequestRepository.AddAsync(request, cancellationToken);
+        if (task.ClientId != clientId)
+        {
+            return Error.Forbidden(
+                code: "HiringRequest.NotTaskOwner",
+                description: "You can only send hiring requests for your own tasks.");
+        }
+
+        if (task.ContractorId is not null)
+        {
+            return Error.Conflict(
+                code: "HiringRequest.TaskAlreadyAssigned",
+                description: "This task already has a contractor.");
+        }
+
+        if (await _contractorRepository.GetByIdAsync(request.ContractorId, cancellationToken) is null)
+        {
+            return Error.NotFound(
+                code: "Contractor.NotFound",
+                description: $"Contractor with ID {request.ContractorId} not found.");
+        }
+
+        var hiringRequest = new HiringRequest
+        {
+            TaskId = task.Id,
+            ClientId = clientId,
+            ContractorId = request.ContractorId,
+            Message = request.Message,
+            PriceOffered = request.PriceOffered
+        };
+
+        var rowsAffected = await _hiringRequestRepository.AddAsync(hiringRequest, cancellationToken);
         if (rowsAffected == 0)
         {
             return Error.Failure(
                 code: "HiringRequest.CreateFailed",
                 description: "Failed to create the hiring request.");
         }
-        return rowsAffected;
+        return hiringRequest.ToDto();
     }
 
     // From HiringRequestsController: GET /api/hiring-requests
-    public async Task<ErrorOr<List<HiringRequest>>> GetAllAsync(CancellationToken cancellationToken = default)
+    // Returns only the requests the caller sent (customer) or received (contractor)
+    public async Task<ErrorOr<List<HiringRequest>>> GetAllAsync(int userId, CancellationToken cancellationToken = default)
     {
-        var hiringRequests = await _hiringRequestRepository.GetAllAsync(cancellationToken);
-
-        if (hiringRequests is null)
-        {
-            return Error.Failure(
-                code: "GettingAllHiringRequest.Null",
-                description: "Failed to Get All  the hiring requests And returned Null"
-                );
-        }
-        if(hiringRequests.Count == 0)
-        {
-            return Error.Failure(
-                code: "GettingAllHiringRequest.Empty",
-                description: "No hiring requests found.");
-        }
-
-
-        return hiringRequests;
-
-
+        return await _hiringRequestRepository.GetByUserIdAsync(userId, cancellationToken);
     }
 
     // From HiringRequestsController: PUT /api/hiring-requests/{requestId}/status
-    public async Task<ErrorOr<int>> UpdateStatusAsync(int requestId, string status, CancellationToken cancellationToken = default)
+    public async Task<ErrorOr<Success>> UpdateStatusAsync(int requestId, int userId, string status, CancellationToken cancellationToken = default)
     {
-        var HiringRequest= await _hiringRequestRepository.GetByIdAsync(requestId);
-        if(HiringRequest is null)
+        var hiringRequest = await _hiringRequestRepository.GetByIdAsync(requestId, cancellationToken);
+        if (hiringRequest is null)
         {
-            return Error.Validation(
+            return Error.NotFound(
                 code: "HiringRequest.NotFound",
-                description: "Hiring request not found."
-                );
+                description: "Hiring request not found.");
         }
+
+        if (hiringRequest.ContractorId != userId)
+        {
+            return Error.Forbidden(
+                code: "HiringRequest.NotRecipient",
+                description: "Only the contractor who received this request can respond to it.");
+        }
+
         //check if the provided status is valid
-        if (!Enum.TryParse(status, true, out HiringRequestStatus newStatus))
+        if (!Enum.TryParse(status, true, out HiringRequestStatus newStatus)
+            || newStatus is not (HiringRequestStatus.Accepted or HiringRequestStatus.Declined))
         {
             return Error.Validation(
                 code: "HiringRequest.InvalidStatus",
-                description: "Invalid status value."
-                );
+                description: "Status must be 'Accepted' or 'Declined'.");
         }
-        //update the status of the hiring request
-        HiringRequest.Status = newStatus;
-        //finally, update the hiring request in the database
-        var rowsAffected = await _hiringRequestRepository.Update(HiringRequest, cancellationToken);
+
+        if (hiringRequest.Status != HiringRequestStatus.Pending)
+        {
+            return Error.Conflict(
+                code: "HiringRequest.AlreadyAnswered",
+                description: "This hiring request was already answered.");
+        }
+
+        if (newStatus == HiringRequestStatus.Accepted)
+        {
+            var task = await _taskItemRepository.GetByIdAsync(hiringRequest.TaskId, cancellationToken);
+            if (task is null)
+            {
+                return Error.NotFound(
+                    code: "TaskItem.NotFound",
+                    description: $"Task with ID {hiringRequest.TaskId} not found.");
+            }
+
+            if (task.ContractorId is not null && task.ContractorId != userId)
+            {
+                return Error.Conflict(
+                    code: "HiringRequest.TaskAlreadyAssigned",
+                    description: "This task already has another contractor.");
+            }
+
+            task.ContractorId = userId;
+            task.Status = TaskMarket.Models.TaskStatus.InProgress;
+        }
+
+        hiringRequest.Status = newStatus;
+        hiringRequest.RespondedAt = DateTime.UtcNow;
+
+        //finally, update the hiring request (and the task, if accepted) in the database
+        var rowsAffected = await _hiringRequestRepository.Update(hiringRequest, cancellationToken);
         if (rowsAffected == 0)
         {
             return Error.Failure(
                 code: "HiringRequest.UpdateFailed",
                 description: "Failed to update the hiring request status.");
         }
-        return rowsAffected;
+        return Result.Success;
     }
 }

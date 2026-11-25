@@ -1,62 +1,54 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskMarket.Handlers;
-using TaskMarket.IRepositories;
+using TaskMarket.Helpers;
 
 namespace TaskMarket.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/payments")]
-public class PaymentsController : ControllerBase
+public class PaymentsController : ProblemHandler
 {
-    private readonly IPaymentRepository _paymentRepository;
     private readonly PaymentsHandler _paymentsHandler;
 
-    public PaymentsController(IPaymentRepository paymentRepository, PaymentsHandler paymentsHandler)
+    public PaymentsController(PaymentsHandler paymentsHandler)
     {
-        _paymentRepository = paymentRepository;
         _paymentsHandler = paymentsHandler;
     }
 
     [HttpPost("intent")]
+    [Authorize(Roles = "Customer")]
     public async Task<IActionResult> CreateIntent([FromBody] CreatePaymentIntentRequest request)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-
-        var resultBox = await _paymentsHandler.CreateIntentAsync(request.TaskId, request.Amount);
+        var resultBox = await _paymentsHandler.CreateIntentAsync(request.TaskId, User.GetUserId(), request.Amount);
 
         return resultBox.Match<IActionResult>(
-            success => NoContent(),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            created => StatusCode(StatusCodes.Status201Created, created),
+            failure => Problem(failure)
         );
     }
 
     [HttpPost("confirm")]
     public async Task<IActionResult> Confirm([FromBody] ConfirmPaymentRequest request)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-
-        var resultBox = await _paymentsHandler.ConfirmAsync(request.PaymentIntentId, request.Succeeded);
+        var resultBox = await _paymentsHandler.ConfirmAsync(request.PaymentIntentId, request.Succeeded, User.GetUserId());
 
         return resultBox.Match<IActionResult>(
             success => NoContent(),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            failure => Problem(failure)
         );
     }
 
+    // Payments the caller made or received
     [HttpGet]
     public async Task<IActionResult> GetHistory()
     {
-        var resultBox = await _paymentsHandler.GetHistoryAsync();
+        var resultBox = await _paymentsHandler.GetHistoryAsync(User.GetUserId());
 
         return resultBox.Match<IActionResult>(
             success => Ok(success),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            failure => Problem(failure)
         );
     }
 

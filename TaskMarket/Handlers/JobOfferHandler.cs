@@ -1,4 +1,5 @@
 using ErrorOr;
+using TaskMarket.Dtos;
 using TaskMarket.IRepositories;
 using TaskMarket.Models;
 
@@ -7,47 +8,76 @@ namespace TaskMarket.Handlers;
 public sealed class JobOfferHandler
 {
     private readonly IJobOfferRepository _jobOfferRepository;
+    private readonly ITaskItemRepository _taskItemRepository;
 
-    public JobOfferHandler(IJobOfferRepository jobOfferRepository)
+    public JobOfferHandler(IJobOfferRepository jobOfferRepository, ITaskItemRepository taskItemRepository)
     {
         _jobOfferRepository = jobOfferRepository;
+        _taskItemRepository = taskItemRepository;
     }
 
     // From OffersController: POST /api/offers
-    public async Task<ErrorOr<Success>> CreateOfferAsync(JobOffer request, CancellationToken cancellationToken = default)
+    public async Task<ErrorOr<JobOfferDto>> CreateOfferAsync(int clientId, CreateJobOfferRequestDto request, CancellationToken cancellationToken = default)
     {
-        if (request is null)
+        if (request.MinPrice > request.MaxPrice)
         {
             return Error.Validation(
-                code: "JobOffer.Null",
-                description: "Job offer cannot be null.");
+                code: "JobOffer.InvalidPriceRange",
+                description: "MinPrice cannot be greater than MaxPrice.");
         }
 
-        await _jobOfferRepository.AddAsync(request, cancellationToken);
-        
-        return Result.Success;
+        if (request.Deadline <= DateTime.UtcNow)
+        {
+            return Error.Validation(
+                code: "JobOffer.DeadlineInPast",
+                description: "Deadline must be in the future.");
+        }
+
+        if (request.Latitude.HasValue != request.Longitude.HasValue)
+        {
+            return Error.Validation(
+                code: "JobOffer.LocationIncomplete",
+                description: "Latitude and longitude must be provided together.");
+        }
+
+        var task = await _taskItemRepository.GetByIdAsync(request.TaskId, cancellationToken);
+        if (task is null)
+        {
+            return Error.NotFound(
+                code: "TaskItem.NotFound",
+                description: $"Task with ID {request.TaskId} not found.");
+        }
+
+        if (task.ClientId != clientId)
+        {
+            return Error.Forbidden(
+                code: "JobOffer.NotTaskOwner",
+                description: "You can only create offers for your own tasks.");
+        }
+
+        var offer = new JobOffer
+        {
+            TaskId = task.Id,
+            ClientId = clientId,
+            Price = request.Price,
+            MinPrice = request.MinPrice,
+            MaxPrice = request.MaxPrice,
+            Deadline = request.Deadline,
+            Location = request.Latitude.HasValue
+                ? new GeoCoordinate(request.Latitude.Value, request.Longitude!.Value)
+                : task.Location
+        };
+
+        await _jobOfferRepository.AddAsync(offer, cancellationToken);
+        await _jobOfferRepository.SaveChangesAsync(cancellationToken);
+
+        return offer.ToDto();
     }
 
     // From OffersController: GET /api/offers
     public async Task<ErrorOr<List<JobOffer>>> GetOffersAsync(CancellationToken cancellationToken = default)
     {
-        var offers = await _jobOfferRepository.GetAllAsync(cancellationToken);
-
-        if (offers is null)
-        {
-            return Error.Failure(
-                code: "GettingAllJobOffers.Null",
-                description: "Failed to get all job offers and returned null.");
-        }
-        
-        if (offers.Count == 0)
-        {
-            return Error.NotFound(
-                code: "GettingAllJobOffers.Empty",
-                description: "No job offers found.");
-        }
-
-        return offers;
+        return await _jobOfferRepository.GetAllAsync(cancellationToken);
     }
 
     // From OffersController: GET /api/offers/GetOffersByCustomerId/{customerId}
@@ -60,22 +90,6 @@ public sealed class JobOfferHandler
                 description: "Customer ID must be greater than zero.");
         }
 
-        var offers = await _jobOfferRepository.GetOffersByCustomerIdAsync(customerId, cancellationToken);
-
-        if (offers is null)
-        {
-            return Error.Failure(
-                code: "GettingJobOffersByCustomerId.Null",
-                description: "Failed to get job offers and returned null.");
-        }
-
-        if (offers.Count == 0)
-        {
-            return Error.NotFound(
-                code: "GettingJobOffersByCustomerId.Empty",
-                description: $"No job offers found for customer ID {customerId}.");
-        }
-
-        return offers;
+        return await _jobOfferRepository.GetOffersByCustomerIdAsync(customerId, cancellationToken);
     }
 }

@@ -27,4 +27,7 @@ public sealed class CustomerRepository : ICustomerRepository
 
     public void Remove(Customer customer)
         => _db.Customers.Remove(customer);
+
+    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => _db.SaveChangesAsync(cancellationToken);
 }

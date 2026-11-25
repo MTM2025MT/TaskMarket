@@ -30,4 +30,7 @@ public sealed class JobOfferRepository : IJobOfferRepository
 
     public void Remove(JobOffer offer)
         => _db.JobOffers.Remove(offer);
+
+    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => _db.SaveChangesAsync(cancellationToken);
 }

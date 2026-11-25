@@ -10,6 +10,9 @@ public class JobOfferDto
     public int TaskId { get; set; }
     public int ClientId { get; set; }
     public decimal Price { get; set; }
+    public decimal MinPrice { get; set; }
+    public decimal MaxPrice { get; set; }
+    public GeoCoordinate? Location { get; set; }
     public DateTime Deadline { get; set; }
     public OfferStatus Status { get; set; }
     public DateTime CreatedAt { get; set; }

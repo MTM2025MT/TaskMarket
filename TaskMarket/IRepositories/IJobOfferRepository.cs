@@ -10,4 +10,5 @@ public interface IJobOfferRepository
     Task AddAsync(JobOffer offer, CancellationToken cancellationToken = default);
     void Update(JobOffer offer);
     void Remove(JobOffer offer);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

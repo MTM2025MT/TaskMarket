@@ -1,43 +1,41 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskMarket.Handlers;
-using TaskMarket.IRepositories;
+using TaskMarket.Helpers;
 
 namespace TaskMarket.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/messages")]
-public class MessagesController : ControllerBase
+public class MessagesController : ProblemHandler
 {
-    private readonly IMessageRepository _messageRepository;
     private readonly MessageHandler _messageHandler;
-    private readonly ITaskItemRepository _TaskItemRepository;
 
-    public MessagesController(IMessageRepository messageRepository, MessageHandler messageHandler, ITaskItemRepository taskItemRepository)
+    public MessagesController(MessageHandler messageHandler)
     {
-        _messageRepository = messageRepository;
         _messageHandler = messageHandler;
-        _TaskItemRepository = taskItemRepository;
     }
 
     [HttpPut("{messageId:int}/read")]
     public async Task<IActionResult> MarkAsRead(int messageId)
     {
-        var resultBox = await _messageHandler.MarkAsReadAsync(messageId);
+        var resultBox = await _messageHandler.MarkAsReadAsync(messageId, User.GetUserId());
 
         return resultBox.Match<IActionResult>(
             success => NoContent(),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            failure => Problem(failure)
         );
     }
 
     [HttpGet("GetAllMesseges/{userid:int}")]
     public async Task<IActionResult> GetAllMessgesAsync(int userid)
     {
-       var messeges=await _messageRepository.GetUserMesseges(userid);
-        if (messeges!=null)
-        {
-            return Ok(messeges);
-        }
-        throw new  Exception("messges failed to run");
+        var resultBox = await _messageHandler.GetUserMessagesAsync(userid, User.GetUserId());
+
+        return resultBox.Match<IActionResult>(
+            success => Ok(success),
+            failure => Problem(failure)
+        );
     }
 }

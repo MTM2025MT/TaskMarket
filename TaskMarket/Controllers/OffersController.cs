@@ -1,44 +1,35 @@
+
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TaskMarket.Dtos;
 using TaskMarket.Handlers;
-using TaskMarket.IRepositories;
-using TaskMarket.Models;
+using TaskMarket.Helpers;
 
 namespace TaskMarket.Controllers;
 
 [ApiController]
 [Route("api/offers")]
-public class OffersController : ControllerBase
+public class OffersController : ProblemHandler
 {
-    private readonly IJobOfferRepository _jobOfferRepository;
-    private readonly IOfferApplicationRepository _offerApplicationRepository;
     private readonly JobOfferHandler _jobOfferHandler;
     private readonly OfferApplicationHandler _offerApplicationHandler;
-
     public OffersController(
-        IJobOfferRepository jobOfferRepository,
-        IOfferApplicationRepository offerApplicationRepository,
         JobOfferHandler jobOfferHandler,
         OfferApplicationHandler offerApplicationHandler)
     {
-        _jobOfferRepository = jobOfferRepository;
-        _offerApplicationRepository = offerApplicationRepository;
         _jobOfferHandler = jobOfferHandler;
         _offerApplicationHandler = offerApplicationHandler;
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateOffer([FromBody] JobOffer request)
+    [Authorize(Roles = "Customer")]
+    public async Task<IActionResult> CreateOffer([FromBody] CreateJobOfferRequestDto request)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-
-        var resultBox = await _jobOfferHandler.CreateOfferAsync(request);
+        var resultBox = await _jobOfferHandler.CreateOfferAsync(User.GetUserId(), request);
 
         return resultBox.Match<IActionResult>(
-            success => CreatedAtAction(nameof(GetOffers), new { id = request.Id }, success),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            created => StatusCode(StatusCodes.Status201Created, created),
+            failure => Problem(failure)
         );
     }
 
@@ -48,7 +39,7 @@ public class OffersController : ControllerBase
         var resultBox = await _jobOfferHandler.GetOffersAsync();
         return resultBox.Match<IActionResult>(
             success => Ok(success),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            failure => Problem(failure)
         );
     }
 
@@ -59,45 +50,44 @@ public class OffersController : ControllerBase
 
         return resultBox.Match<IActionResult>(
             success => Ok(success),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            failure => Problem(failure)
         );
     }
 
     [HttpPost("{offerId:int}/applications")]
-    public async Task<IActionResult> CreateApplication(int offerId, [FromBody] OfferApplication request)
+    [Authorize(Roles = "Contractor")]
+    public async Task<IActionResult> CreateApplication(int offerId, [FromBody] CreateOfferApplicationRequestDto request)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-
-        var resultBox = await _offerApplicationHandler.CreateApplicationAsync(offerId, request);
+        var resultBox = await _offerApplicationHandler.CreateApplicationAsync(offerId, User.GetUserId(), request);
 
         return resultBox.Match<IActionResult>(
-            success => CreatedAtAction(nameof(GetApplications), new { offerId }, success),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            created => CreatedAtAction(nameof(GetApplications), new { offerId }, created),
+            failure => Problem(failure)
         );
     }
 
+    // The offer owner sees all applications; a contractor only sees their own
     [HttpGet("{offerId:int}/applications")]
+    [Authorize]
     public async Task<IActionResult> GetApplications(int offerId)
     {
-        var resultBox = await _offerApplicationHandler.GetApplicationsAsync(offerId);
+        var resultBox = await _offerApplicationHandler.GetApplicationsAsync(offerId, User.GetUserId());
 
         return resultBox.Match<IActionResult>(
             success => Ok(success),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            failure => Problem(failure)
         );
     }
 
     [HttpPost("{offerId:int}/applications/{applicationId:int}/accept")]
+    [Authorize(Roles = "Customer")]
     public async Task<IActionResult> AcceptApplication(int offerId, int applicationId)
     {
-        var resultBox = await _offerApplicationHandler.AcceptApplicationAsync(offerId, applicationId);
+        var resultBox = await _offerApplicationHandler.AcceptApplicationAsync(offerId, applicationId, User.GetUserId());
 
         return resultBox.Match<IActionResult>(
             success => NoContent(),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            failure => Problem(failure)
         );
     }
 }

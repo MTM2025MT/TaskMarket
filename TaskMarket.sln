@@ -1,9 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36623.8 d17.14
+VisualStudioVersion = 17.14.36623.8
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskMarket", "TaskMarket\TaskMarket.csproj", "{FB792E09-5B03-4050-B88F-0AD44A810701}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskMarketApplication", "TaskMarketApplication\TaskMarketApplication.csproj", "{7C598072-D06E-4F51-B5C8-EA4E920C68F8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskMarketInfrastructure", "TaskMarketInfrastructure\TaskMarketInfrastructure.csproj", "{B9605B0E-FB27-475B-8799-7F5AE6CA5F67}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskMarketDomain", "TaskMarketDomain\TaskMarketDomain.csproj", "{6CE764BD-CDA7-4A55-964A-B089D822520B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +21,18 @@ Global
 		{FB792E09-5B03-4050-B88F-0AD44A810701}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FB792E09-5B03-4050-B88F-0AD44A810701}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FB792E09-5B03-4050-B88F-0AD44A810701}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7C598072-D06E-4F51-B5C8-EA4E920C68F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7C598072-D06E-4F51-B5C8-EA4E920C68F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7C598072-D06E-4F51-B5C8-EA4E920C68F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7C598072-D06E-4F51-B5C8-EA4E920C68F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9605B0E-FB27-475B-8799-7F5AE6CA5F67}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9605B0E-FB27-475B-8799-7F5AE6CA5F67}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9605B0E-FB27-475B-8799-7F5AE6CA5F67}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9605B0E-FB27-475B-8799-7F5AE6CA5F67}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6CE764BD-CDA7-4A55-964A-B089D822520B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6CE764BD-CDA7-4A55-964A-B089D822520B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6CE764BD-CDA7-4A55-964A-B089D822520B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6CE764BD-CDA7-4A55-964A-B089D822520B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

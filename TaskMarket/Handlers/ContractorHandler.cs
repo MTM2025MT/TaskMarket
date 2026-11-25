@@ -1,4 +1,6 @@
 using ErrorOr;
+using Microsoft.Extensions.Caching.Memory;
+using TaskMarket.Dtos;
 using TaskMarket.IRepositories;
 using TaskMarket.Models;
 
@@ -6,11 +8,19 @@ namespace TaskMarket.Handlers;
 
 public sealed class ContractorHandler
 {
-    private readonly IContractorRepository _contractorRepository;
+    // Shared with JobCacheRefreshService, which refreshes this entry every hour
+    public const string BestContractorsCacheKey = "best-contractors-list";
+    public const int BestContractorsCacheSize = 50;
 
-    public ContractorHandler(IContractorRepository contractorRepository)
+    private readonly IContractorRepository _contractorRepository;
+    private ILogger<Contractor> _ContractorLogger;
+    private readonly IMemoryCache _cache;
+
+    public ContractorHandler(IContractorRepository contractorRepository, ILogger<Contractor> contractorLogger,IMemoryCache Cache)
     {
         _contractorRepository = contractorRepository;
+        _ContractorLogger = contractorLogger;
+        _cache = Cache;
     }
 
     public async Task<ErrorOr<Contractor>> GetByIdAsync(int id, CancellationToken cancellationToken = default)
@@ -19,6 +29,7 @@ public sealed class ContractorHandler
 
         if (contractor is null)
         {
+            _ContractorLogger.LogWarning("Contractor with ID {ContractorId} not found.", id);
             return Error.NotFound(
                 code: "Contractor.NotFound",
                 description: "Contractor not found."
@@ -30,24 +41,7 @@ public sealed class ContractorHandler
 
     public async Task<ErrorOr<List<Contractor>>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var contractors = await _contractorRepository.GetAllAsync(cancellationToken);
-
-        if (contractors is null)
-        {
-            return Error.Failure(
-                code: "GettingAllContractors.Null",
-                description: "Failed to Get All contractors and returned null."
-            );
-        }
-        if (contractors.Count == 0)
-        {
-            return Error.NotFound(
-                code: "GettingAllContractors.Empty",
-                description: "No contractors found."
-            );
-        }
-
-        return contractors;
+        return await _contractorRepository.GetAllAsync(cancellationToken);
     }
 
     public async Task<ErrorOr<Success>> AddAsync(Contractor contractor, CancellationToken cancellationToken = default)
@@ -61,6 +55,7 @@ public sealed class ContractorHandler
         }
 
         await _contractorRepository.AddAsync(contractor, cancellationToken);
+        await _contractorRepository.SaveChangesAsync(cancellationToken);
         return Result.Success;
     }
 
@@ -84,6 +79,7 @@ public sealed class ContractorHandler
         }
 
         _contractorRepository.Update(contractor);
+        await _contractorRepository.SaveChangesAsync(cancellationToken);
         return Result.Success;
     }
 
@@ -106,7 +102,32 @@ public sealed class ContractorHandler
             );
         }
 
-        _contractorRepository.Remove(contractor);
+        _contractorRepository.Remove(existingContractor);
+        await _contractorRepository.SaveChangesAsync(cancellationToken);
         return Result.Success;
     }
+
+    public async Task<ErrorOr<List<ContractorDto>>> GetBestContractors(int count, CancellationToken cancellationToken = default)
+    {
+        if (count < 1 || count > BestContractorsCacheSize)
+        {
+            return Error.Validation(
+                code: "Contractor.InvalidCount",
+                description: $"Count must be between 1 and {BestContractorsCacheSize}."
+            );
+        }
+
+        // Cache-aside: the background job normally fills the cache, but fall back to the DB if it hasn't yet
+        if (!_cache.TryGetValue(BestContractorsCacheKey, out List<Contractor>? bestContractors) || bestContractors is null)
+        {
+            bestContractors = await _contractorRepository.GetBestAsync(BestContractorsCacheSize, cancellationToken);
+            _cache.Set(BestContractorsCacheKey, bestContractors, TimeSpan.FromHours(1));
+        }
+
+        return bestContractors
+            .Take(count)
+            .Select(c => c.ToDto())
+            .ToList();
+    }
+
 }

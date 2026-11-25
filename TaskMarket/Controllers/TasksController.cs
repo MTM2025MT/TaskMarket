@@ -1,37 +1,26 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TaskMarket.Dtos;
 using TaskMarket.Handlers;
-using TaskMarket.IRepositories;
-using TaskMarket.Models;
+using TaskMarket.Helpers;
 
 namespace TaskMarket.Controllers;
 
 [ApiController]
 [Route("api/tasks")]
-public class TasksController : ControllerBase
+public class TasksController : ProblemHandler
 {
-    private readonly ITaskItemRepository _taskItemRepository;
-    private readonly ITaskMediaRepository _taskMediaRepository;
-    private readonly IMessageRepository _messageRepository;
-    private readonly IReviewRepository _reviewRepository;
     private readonly TaskItemHandler _taskItemHandler;
     private readonly TaskMediaHandler _taskMediaHandler;
     private readonly MessageHandler _messageHandler;
     private readonly ReviewHandler _reviewHandler;
 
     public TasksController(
-        ITaskItemRepository taskItemRepository,
-        ITaskMediaRepository taskMediaRepository,
-        IMessageRepository messageRepository,
-        IReviewRepository reviewRepository,
         TaskItemHandler taskItemHandler,
         TaskMediaHandler taskMediaHandler,
         MessageHandler messageHandler,
         ReviewHandler reviewHandler)
     {
-        _taskItemRepository = taskItemRepository;
-        _taskMediaRepository = taskMediaRepository;
-        _messageRepository = messageRepository;
-        _reviewRepository = reviewRepository;
         _taskItemHandler = taskItemHandler;
         _taskMediaHandler = taskMediaHandler;
         _messageHandler = messageHandler;
@@ -39,34 +28,26 @@ public class TasksController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateTask([FromBody] TaskItem request)
+    [Authorize(Roles = "Customer")]
+    public async Task<IActionResult> CreateTask([FromBody] CreateTaskRequestDto request)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-
-        var resultBox = await _taskItemHandler.CreateTaskAsync(request);
+        var resultBox = await _taskItemHandler.CreateTaskAsync(User.GetUserId(), request);
 
         return resultBox.Match<IActionResult>(
-            success => CreatedAtAction(nameof(GetTaskById), new { taskId = request.Id }, success),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            created => CreatedAtAction(nameof(GetTaskById), new { taskId = created.Id }, created),
+            failure => Problem(failure)
         );
     }
 
     [HttpPost("{taskId:int}/media")]
-    public async Task<IActionResult> AddTaskMedia(int taskId, [FromBody] TaskMedia request)
+    [Authorize]
+    public async Task<IActionResult> AddTaskMedia(int taskId, [FromBody] AddTaskMediaRequestDto request)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-
-        var resultBox = await _taskMediaHandler.AddTaskMediaAsync(taskId, request);
+        var resultBox = await _taskMediaHandler.AddTaskMediaAsync(taskId, User.GetUserId(), request);
 
         return resultBox.Match<IActionResult>(
-            success => NoContent(),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            created => StatusCode(StatusCodes.Status201Created, created),
+            failure => Problem(failure)
         );
     }
 
@@ -77,7 +58,7 @@ public class TasksController : ControllerBase
 
         return resultBox.Match<IActionResult>(
             success => Ok(success),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            failure => Problem(failure)
         );
     }
 
@@ -88,7 +69,7 @@ public class TasksController : ControllerBase
 
         return resultBox.Match<IActionResult>(
             success => Ok(success),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            failure => Problem(failure)
         );
     }
 
@@ -99,61 +80,55 @@ public class TasksController : ControllerBase
 
         return resultBox.Match<IActionResult>(
             success => Ok(success),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            failure => Problem(failure)
         );
     }
 
     [HttpPut("{taskId:int}/status")]
+    [Authorize]
     public async Task<IActionResult> UpdateTaskStatus(int taskId, [FromBody] UpdateTaskStatusRequest request)
     {
-        var resultBox = await _taskItemHandler.UpdateTaskStatusAsync(taskId, request.Status);
+        var resultBox = await _taskItemHandler.UpdateTaskStatusAsync(taskId, User.GetUserId(), request.Status);
 
         return resultBox.Match<IActionResult>(
             success => NoContent(),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            failure => Problem(failure)
         );
     }
 
     [HttpGet("{taskId:int}/messages")]
+    [Authorize]
     public async Task<IActionResult> GetTaskMessages(int taskId)
     {
-        var resultBox = await _messageHandler.GetTaskMessagesAsync(taskId);
+        var resultBox = await _messageHandler.GetTaskMessagesAsync(taskId, User.GetUserId());
 
         return resultBox.Match<IActionResult>(
             success => Ok(success),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            failure => Problem(failure)
         );
     }
 
     [HttpPost("{taskId:int}/messages")]
-    public async Task<IActionResult> SendTaskMessage(int taskId, [FromBody] Message request)
+    [Authorize]
+    public async Task<IActionResult> SendTaskMessage(int taskId, [FromBody] SendMessageRequestDto request)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-
-        var resultBox = await _messageHandler.SendTaskMessageAsync(taskId, request);
+        var resultBox = await _messageHandler.SendTaskMessageAsync(taskId, User.GetUserId(), request.Content);
 
         return resultBox.Match<IActionResult>(
-            success => NoContent(),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            created => StatusCode(StatusCodes.Status201Created, created),
+            failure => Problem(failure)
         );
     }
 
     [HttpPost("{taskId:int}/reviews")]
-    public async Task<IActionResult> CreateTaskReview(int taskId, [FromBody] Review request)
+    [Authorize]
+    public async Task<IActionResult> CreateTaskReview(int taskId, [FromBody] CreateReviewRequestDto request)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-
-        var resultBox = await _reviewHandler.CreateTaskReviewAsync(taskId, request);
+        var resultBox = await _reviewHandler.CreateTaskReviewAsync(taskId, User.GetUserId(), request);
 
         return resultBox.Match<IActionResult>(
-            success => NoContent(),
-            failure => StatusCode(StatusCodes.Status500InternalServerError, failure)
+            created => StatusCode(StatusCodes.Status201Created, created),
+            failure => Problem(failure)
         );
     }
 
